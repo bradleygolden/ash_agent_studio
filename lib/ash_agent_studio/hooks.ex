@@ -11,9 +11,8 @@ defmodule AshAgentStudio.Hooks do
   @doc """
   Assigns the base path from session to the socket.
 
-  This hook extracts the `ash_agent_studio_base_path` from the session
-  and assigns it as `base_path` on the socket, making it available
-  to both LiveViews and the root layout.
+  The base path is computed at compile time in the router macro using
+  `Phoenix.Router.scoped_path/2`, which correctly handles nested scopes.
   """
   def on_mount(:assign_base_path, _params, session, socket) do
     base_path = session["ash_agent_studio_base_path"] || "/"

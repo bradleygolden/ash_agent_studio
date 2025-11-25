@@ -28,12 +28,15 @@ defmodule AshAgentStudio.Router do
     quote bind_quoted: [path: validated_path, opts: opts], location: :keep do
       scope_opts = [as: Keyword.get(opts, :as, :ash_agent_studio), alias: false]
 
+      # Compute the full scoped path at compile time (includes parent scopes)
+      full_path = Phoenix.Router.scoped_path(__MODULE__, path)
+
       scope path, scope_opts do
         # Assets route must be outside live_session (get routes don't work inside live_session)
         get("/assets/:asset", AshAgentStudio.AssetController, :show)
 
         live_session :ash_agent_studio,
-          session: %{"ash_agent_studio_base_path" => path},
+          session: %{"ash_agent_studio_base_path" => full_path},
           on_mount: {AshAgentStudio.Hooks, :assign_base_path},
           root_layout: {AshAgentStudio.Layouts.Root, :root} do
           live("/", AshAgentStudio.OverviewLive, :home)
