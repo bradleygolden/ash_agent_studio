@@ -2,8 +2,14 @@ defmodule AshAgentStudio.Router do
   @moduledoc """
   Routing helpers for embedding Ash Agent Studio screens, modeled after `Phoenix.LiveDashboard.Router`.
 
-  Import (or `use`) the helper from inside your router, wrap it in whatever scopes/pipelines you need,
-  and pass the mount path as the first argument:
+  ## Setup
+
+  1. Add the assets plug to your endpoint (before the router):
+
+      # In your endpoint.ex
+      plug AshAgentStudio.Plug.Assets
+
+  2. Import and use the router helper:
 
       defmodule MyAppWeb.Router do
         use MyAppWeb, :router
@@ -15,29 +21,13 @@ defmodule AshAgentStudio.Router do
         end
       end
 
-  Note: Asset routes are registered at the module level (outside any scopes/pipelines) to avoid
-  authentication requirements. This follows the same pattern as Phoenix LiveDashboard.
+  The assets plug serves static files at the endpoint level, bypassing authentication
+  pipelines. This ensures assets load regardless of how you configure your router.
   """
 
   defmacro __using__(_opts) do
     quote do
       import AshAgentStudio.Router
-      @before_compile AshAgentStudio.Router
-      Module.register_attribute(__MODULE__, :ash_agent_studio_prefix, accumulate: false)
-    end
-  end
-
-  defmacro __before_compile__(env) do
-    prefix = Module.get_attribute(env.module, :ash_agent_studio_prefix)
-
-    if prefix do
-      quote do
-        # Register asset route at module level (outside any scopes/pipelines)
-        # This bypasses authentication pipelines, following LiveDashboard's pattern
-        scope unquote(prefix), alias: false do
-          get("/assets/:asset", AshAgentStudio.AssetController, :show)
-        end
-      end
     end
   end
 
@@ -49,9 +39,6 @@ defmodule AshAgentStudio.Router do
 
       # Compute the full scoped path at compile time (includes parent scopes)
       full_path = Phoenix.Router.scoped_path(__MODULE__, path)
-
-      # Store the full path for asset route registration in @before_compile
-      @ash_agent_studio_prefix full_path
 
       scope path, scope_opts do
         live_session :ash_agent_studio,
