@@ -12,13 +12,11 @@ defmodule AshAgentStudio.PlaygroundLive do
   alias AshAgentStudio.Registry
 
   @impl true
-  def mount(_params, session, socket) do
-    base_path = session["ash_agent_studio_base_path"] || ""
+  def mount(_params, _session, socket) do
     agents = Registry.list_agents()
 
     {:ok,
      assign(socket,
-       base_path: base_path,
        agents: agents,
        selected_agent: nil,
        agent_config: nil,

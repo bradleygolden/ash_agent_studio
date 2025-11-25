@@ -22,13 +22,14 @@ defmodule AshAgentStudio.OverviewLiveTest do
   end
 
   test "mount assigns runs and handle_info refreshes", %{run: run} do
+    # Pre-assign base_path as on_mount hook would do
     socket = %Socket{
-      assigns: %{__changed__: %{}, flash: %{}, live_action: nil},
-      private: %{ash_agent_studio_base_path: "/ash-agent-ui"}
+      assigns: %{__changed__: %{}, flash: %{}, live_action: nil, base_path: "/ash-agent-ui"},
+      private: %{}
     }
 
     {:ok, socket} =
-      OverviewLive.mount(%{}, %{"ash_agent_studio_base_path" => "/ash-agent-ui"}, socket)
+      OverviewLive.mount(%{}, %{}, socket)
 
     assert hd(socket.assigns.runs).id == run.id
     assert socket.assigns.base_path == "/ash-agent-ui"
@@ -53,13 +54,14 @@ defmodule AshAgentStudio.OverviewLiveTest do
   end
 
   test "pauses streaming and refreshes on resume", %{run: run} do
+    # Pre-assign base_path as on_mount hook would do
     socket = %Socket{
-      assigns: %{__changed__: %{}, flash: %{}, live_action: nil},
-      private: %{ash_agent_studio_base_path: "/ash-agent-ui"}
+      assigns: %{__changed__: %{}, flash: %{}, live_action: nil, base_path: "/ash-agent-ui"},
+      private: %{}
     }
 
     {:ok, socket} =
-      OverviewLive.mount(%{}, %{"ash_agent_studio_base_path" => "/ash-agent-ui"}, socket)
+      OverviewLive.mount(%{}, %{}, socket)
 
     assert socket.assigns.streaming?
 

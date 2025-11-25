@@ -6,17 +6,13 @@ defmodule AshAgentStudio.RunLive do
   alias AshAgentStudio.Observe.Components
 
   @impl true
-  def mount(%{"id" => id}, session, socket) do
-    base_path =
-      session["ash_agent_studio_base_path"] || socket.private[:ash_agent_studio_base_path] || "/"
-
+  def mount(%{"id" => id}, _session, socket) do
     run = fetch_run(id)
 
     socket =
       socket
       |> assign(:run, run)
       |> assign(:events, run_events(run))
-      |> assign(:base_path, base_path)
       |> assign(:active_tab, :payloads)
 
     if connected?(socket) do

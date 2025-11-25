@@ -5,6 +5,8 @@ defmodule AshAgentStudio.Layouts.Root do
   use Phoenix.Component
 
   def root(assigns) do
+    assigns = assign_new(assigns, :base_path, fn -> "/" end)
+
     ~H"""
     <!DOCTYPE html>
     <html lang="en" class="dark">
@@ -13,8 +15,8 @@ defmodule AshAgentStudio.Layouts.Root do
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="csrf-token" content={Plug.CSRFProtection.get_csrf_token()} />
         <title>Ash Agent Studio</title>
-        <link phx-track-static rel="stylesheet" href="/assets/app.css" />
-        <script defer phx-track-static src="/assets/app.js"></script>
+        <link phx-track-static rel="stylesheet" href={Path.join(@base_path, "assets/app.css")} />
+        <script defer phx-track-static src={Path.join(@base_path, "assets/app.js")}></script>
       </head>
       <body class="antialiased">
         <%= @inner_content %>

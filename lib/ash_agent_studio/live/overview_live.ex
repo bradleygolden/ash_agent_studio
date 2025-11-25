@@ -6,10 +6,7 @@ defmodule AshAgentStudio.OverviewLive do
   alias AshAgentStudio.Observe.Components
 
   @impl true
-  def mount(_params, session, socket) do
-    base_path =
-      session["ash_agent_studio_base_path"] || socket.private[:ash_agent_studio_base_path] || "/"
-
+  def mount(_params, _session, socket) do
     {:ok, runs} = Observe.list_runs(limit: 50)
     connected? = connected?(socket)
 
@@ -18,7 +15,6 @@ defmodule AshAgentStudio.OverviewLive do
       |> assign(:all_runs, runs)
       |> assign(:runs, runs)
       |> assign(:stats, build_stats(runs))
-      |> assign(:base_path, base_path)
       |> assign(:streaming?, true)
       |> assign(:connected?, connected?)
       |> assign(:is_filter_open, false)

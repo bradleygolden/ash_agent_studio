@@ -44,13 +44,14 @@ defmodule AshAgentStudio.RunLiveTest do
   end
 
   test "mount assigns base metadata and timeline updates", %{run: run} do
+    # Pre-assign base_path as on_mount hook would do
     socket = %Socket{
-      assigns: %{__changed__: %{}, flash: %{}, live_action: nil},
-      private: %{ash_agent_studio_base_path: "/ash-agent-ui"}
+      assigns: %{__changed__: %{}, flash: %{}, live_action: nil, base_path: "/ash-agent-ui"},
+      private: %{}
     }
 
     {:ok, socket} =
-      RunLive.mount(%{"id" => run.id}, %{"ash_agent_studio_base_path" => "/ash-agent-ui"}, socket)
+      RunLive.mount(%{"id" => run.id}, %{}, socket)
 
     assert socket.assigns.run.id == run.id
     assert socket.assigns.base_path == "/ash-agent-ui"
