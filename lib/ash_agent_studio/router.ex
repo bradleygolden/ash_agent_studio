@@ -29,6 +29,9 @@ defmodule AshAgentStudio.Router do
       scope_opts = [as: Keyword.get(opts, :as, :ash_agent_studio), alias: false]
 
       scope path, scope_opts do
+        # Assets route must be outside live_session (get routes don't work inside live_session)
+        get("/assets/:asset", AshAgentStudio.AssetController, :show)
+
         live_session :ash_agent_studio,
           session: %{"ash_agent_studio_base_path" => path},
           on_mount: {AshAgentStudio.Hooks, :assign_base_path},
@@ -36,7 +39,6 @@ defmodule AshAgentStudio.Router do
           live("/", AshAgentStudio.OverviewLive, :home)
           live("/runs/:id", AshAgentStudio.RunLive, :run)
           live("/playground", AshAgentStudio.PlaygroundLive, :playground)
-          get("/assets/:asset", AshAgentStudio.AssetController, :show)
         end
       end
     end
