@@ -208,7 +208,9 @@ defmodule AshAgentStudio.Observe.TelemetryTest do
     assert Enum.any?(finished.events, &(&1.type == :progressive_token_based))
   end
 
-  test "stream summary persists events even after stop" do
+  test "stream summary persists events before stop" do
+    # Note: In AshAgent.Telemetry.span/3, summary fires BEFORE stop
+    # so the telemetry handler expects summary to arrive while the run is still tracked
     context = make_ref()
 
     metadata = %{
@@ -221,16 +223,17 @@ defmodule AshAgentStudio.Observe.TelemetryTest do
 
     :telemetry.execute([:ash_agent, :stream, :start], %{}, metadata)
 
-    :telemetry.execute(
-      [:ash_agent, :stream, :stop],
-      %{duration: 30_000},
-      Map.merge(metadata, %{status: :ok, usage: %{total_tokens: 24}})
-    )
-
+    # Summary fires before stop (as per AshAgent.Telemetry.span/3)
     :telemetry.execute(
       [:ash_agent, :stream, :summary],
       %{},
       Map.merge(metadata, %{status: :ok})
+    )
+
+    :telemetry.execute(
+      [:ash_agent, :stream, :stop],
+      %{duration: 30_000},
+      Map.merge(metadata, %{status: :ok, usage: %{total_tokens: 24}})
     )
 
     {:ok, [run | _]} = Observe.list_runs()

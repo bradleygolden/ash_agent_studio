@@ -9,7 +9,8 @@ defmodule AshAgentStudio.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
-      deps: deps()
+      deps: deps(),
+      listeners: [Phoenix.CodeReloader]
     ]
   end
 
@@ -30,6 +31,7 @@ defmodule AshAgentStudio.MixProject do
   end
 
   # Specifies which paths to compile per environment.
+  defp elixirc_paths(:dev), do: ["lib", "dev"]
   defp elixirc_paths(_), do: ["lib"]
 
   # Specifies your project dependencies.
@@ -49,9 +51,14 @@ defmodule AshAgentStudio.MixProject do
        compile: false,
        depth: 1},
       {:jason, "~> 1.2"},
+      {:bandit, "~> 1.0"},
       {:igniter, "~> 0.3"},
+      {:ash, "~> 3.0", only: :dev},
+      {:ash_agent, in_umbrella: true, only: :dev},
+      {:ash_baml, in_umbrella: true, only: :dev},
       {:esbuild, "~> 0.8", only: :dev},
       {:tailwind, "~> 0.2", only: :dev},
+      {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.30", only: [:dev, :test], runtime: false}
@@ -66,6 +73,7 @@ defmodule AshAgentStudio.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
+      dev: "run --no-halt",
       setup: ["deps.get", "assets.setup", "assets.build"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["tailwind ash_agent_studio", "esbuild ash_agent_studio"],

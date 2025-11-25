@@ -99,10 +99,13 @@ defmodule AshAgentStudio.Observe.Telemetry do
 
   def handle_event([:ash_agent, kind, :stop], measurements, metadata, config)
       when kind in [:call, :stream] do
-    case lookup_run_id(metadata[:telemetry_span_context], config) do
+    case lookup_run_id(metadata[:telemetry_span_context], config)
+         |> fallback_pid_lookup(config) do
       {:ok, run_id} ->
         attrs = build_run_update_attrs(measurements, metadata)
         {:ok, run} = Observe.update_run(run_id, attrs)
+        pop_pid(config.pid_table, self())
+        untrack_span(config.span_table, metadata[:telemetry_span_context])
         broadcast_run(:run_updated, run, config.pubsub)
 
       _ ->
@@ -346,14 +349,14 @@ defmodule AshAgentStudio.Observe.Telemetry do
 
   def handle_event([:ash_agent, kind, :summary] = event_name, measurements, metadata, config)
       when kind in [:call, :stream] do
+    # Note: cleanup (pop_pid, untrack_span) is done in the :stop handler
+    # because summary fires BEFORE stop in AshAgent.Telemetry.span/3
     with {:ok, run_id} <-
            lookup_run_id(metadata[:telemetry_span_context], config)
            |> fallback_pid_lookup(config),
          {:ok, run} <-
            persist_event(run_id, build_event(event_name, measurements, metadata), config) do
       broadcast_run(:run_updated, run, config.pubsub)
-      pop_pid(config.pid_table, self())
-      untrack_span(config.span_table, metadata[:telemetry_span_context])
     else
       _ -> :ok
     end
@@ -466,16 +469,23 @@ defmodule AshAgentStudio.Observe.Telemetry do
   end
 
   defp provider_meta_from_response(nil), do: nil
+  defp provider_meta_from_response(%Stream{}), do: nil
+  defp provider_meta_from_response(response) when is_function(response), do: nil
 
-  defp provider_meta_from_response(response) do
+  defp provider_meta_from_response(response) when is_map(response) do
     response
     |> Map.get(:provider_meta) ||
       Map.get(response, "provider_meta")
       |> clean_term()
   end
 
+  defp provider_meta_from_response(_response), do: nil
+
   defp response_field(nil, _key), do: nil
-  defp response_field(response, key), do: Map.get(response, key)
+  defp response_field(%Stream{}, _key), do: nil
+  defp response_field(response, _key) when is_function(response), do: nil
+  defp response_field(response, key) when is_map(response), do: Map.get(response, key)
+  defp response_field(_response, _key), do: nil
 
   defp build_http_snapshot(metadata, provider_meta) do
     provider_meta
@@ -529,6 +539,9 @@ defmodule AshAgentStudio.Observe.Telemetry do
   end
 
   defp fetch_field(_, _), do: nil
+
+  defp clean_term(%Stream{}), do: nil
+  defp clean_term(value) when is_function(value), do: nil
 
   defp clean_term(%_{} = struct) do
     struct

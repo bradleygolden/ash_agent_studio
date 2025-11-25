@@ -10,12 +10,26 @@ defmodule AshAgentStudio.Transformers.RegisterAgent do
   def transform(dsl_state) do
     module = Spark.Dsl.Transformer.get_persisted(dsl_state, :module)
 
+    # Get input entities from the DSL
+    inputs =
+      Spark.Dsl.Transformer.get_entities(dsl_state, [:agent_studio])
+      |> Enum.map(fn input ->
+        %{
+          name: input.name,
+          type: input.type,
+          doc: input.doc,
+          default: input.default,
+          allow_nil?: input.allow_nil?
+        }
+      end)
+
     config = %{
       label:
         Spark.Dsl.Transformer.get_option(dsl_state, [:agent_studio], :label) ||
           default_label(module),
       description: Spark.Dsl.Transformer.get_option(dsl_state, [:agent_studio], :description),
-      group: Spark.Dsl.Transformer.get_option(dsl_state, [:agent_studio], :group)
+      group: Spark.Dsl.Transformer.get_option(dsl_state, [:agent_studio], :group),
+      inputs: inputs
     }
 
     # Register at runtime when the module is loaded

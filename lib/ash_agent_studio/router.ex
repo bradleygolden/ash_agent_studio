@@ -29,7 +29,9 @@ defmodule AshAgentStudio.Router do
       scope_opts = [as: Keyword.get(opts, :as, :ash_agent_studio), alias: false]
 
       scope path, scope_opts do
-        live_session :ash_agent_studio, session: %{"ash_agent_studio_base_path" => path} do
+        live_session :ash_agent_studio,
+          session: %{"ash_agent_studio_base_path" => path},
+          root_layout: {AshAgentStudio.Layouts.Root, :root} do
           live("/", AshAgentStudio.OverviewLive, :home)
           live("/runs/:id", AshAgentStudio.RunLive, :run)
           live("/playground", AshAgentStudio.PlaygroundLive, :playground)

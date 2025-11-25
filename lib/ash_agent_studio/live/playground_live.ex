@@ -27,7 +27,9 @@ defmodule AshAgentStudio.PlaygroundLive do
        running?: false,
        output: nil,
        error: nil,
-       stream_chunks: []
+       stream_chunks: [],
+       streaming_mode: false,
+       streaming_text: ""
      )}
   end
 
@@ -45,20 +47,24 @@ defmodule AshAgentStudio.PlaygroundLive do
        )}
     else
       module = String.to_existing_atom(module_string)
-      {:ok, studio_config} = Registry.get_config(module)
 
-      # Try to get agent input args if AshAgent.Info is available
-      input_args = get_agent_input_args(module)
+      case Registry.get_config(module) do
+        {:ok, studio_config} ->
+          input_args = get_agent_input_args(module)
 
-      {:noreply,
-       assign(socket,
-         selected_agent: module,
-         agent_config: studio_config,
-         input_args: input_args,
-         form: to_form(default_values(input_args), as: :input),
-         output: nil,
-         error: nil
-       )}
+          {:noreply,
+           assign(socket,
+             selected_agent: module,
+             agent_config: studio_config,
+             input_args: input_args,
+             form: to_form(default_values(input_args), as: :input),
+             output: nil,
+             error: nil
+           )}
+
+        :error ->
+          {:noreply, socket}
+      end
     end
   end
 
@@ -66,21 +72,41 @@ defmodule AshAgentStudio.PlaygroundLive do
     module = socket.assigns.selected_agent
 
     if module && not socket.assigns.running? do
-      # Convert params to keyword list with proper types
       args = build_args(params, socket.assigns.input_args)
 
-      # Start async task to run the agent
-      socket = assign(socket, running?: true, output: nil, error: nil, stream_chunks: [])
+      socket =
+        assign(socket,
+          running?: true,
+          output: nil,
+          error: nil,
+          stream_chunks: [],
+          streaming_text: ""
+        )
 
-      task =
-        Task.async(fn ->
-          run_agent(module, args)
-        end)
+      if socket.assigns.streaming_mode do
+        lv_pid = self()
 
-      {:noreply, assign(socket, task: task)}
+        task =
+          Task.async(fn ->
+            run_agent_stream(module, args, lv_pid)
+          end)
+
+        {:noreply, assign(socket, task: task)}
+      else
+        task =
+          Task.async(fn ->
+            run_agent(module, args)
+          end)
+
+        {:noreply, assign(socket, task: task)}
+      end
     else
       {:noreply, socket}
     end
+  end
+
+  def handle_event("toggle_streaming", _params, socket) do
+    {:noreply, assign(socket, streaming_mode: not socket.assigns.streaming_mode)}
   end
 
   def handle_event("validate", %{"input" => params}, socket) do
@@ -88,6 +114,20 @@ defmodule AshAgentStudio.PlaygroundLive do
   end
 
   @impl true
+  def handle_info({:stream_chunk, chunk}, socket) do
+    new_text = socket.assigns.streaming_text <> extract_chunk_text(chunk)
+    {:noreply, assign(socket, streaming_text: new_text)}
+  end
+
+  def handle_info({:DOWN, ref, :process, _pid, reason}, socket) do
+    if socket.assigns[:task] && socket.assigns.task.ref == ref do
+      {:noreply,
+       assign(socket, running?: false, error: "Agent crashed: #{inspect(reason)}", task: nil)}
+    else
+      {:noreply, socket}
+    end
+  end
+
   def handle_info({ref, result}, socket) do
     if socket.assigns[:task] && socket.assigns.task.ref == ref do
       Process.demonitor(ref, [:flush])
@@ -100,15 +140,6 @@ defmodule AshAgentStudio.PlaygroundLive do
           {:noreply,
            assign(socket, running?: false, output: nil, error: inspect(error), task: nil)}
       end
-    else
-      {:noreply, socket}
-    end
-  end
-
-  def handle_info({:DOWN, ref, :process, _pid, reason}, socket) do
-    if socket.assigns[:task] && socket.assigns.task.ref == ref do
-      {:noreply,
-       assign(socket, running?: false, error: "Agent crashed: #{inspect(reason)}", task: nil)}
     else
       {:noreply, socket}
     end
@@ -133,21 +164,22 @@ defmodule AshAgentStudio.PlaygroundLive do
         <div class="space-y-6">
           <!-- Agent Selector -->
           <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Select Agent
-            </label>
-            <select
-              phx-change="select_agent"
-              name="agent"
-              class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            >
-              <option value="">Choose an agent...</option>
-              <%= for {module, config} <- @agents do %>
-                <option value={module} selected={@selected_agent == module}>
-                  <%= config.label %>
-                </option>
-              <% end %>
-            </select>
+            <form phx-change="select_agent">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Select Agent
+              </label>
+              <select
+                name="agent"
+                class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              >
+                <option value="">Choose an agent...</option>
+                <%= for {module, config} <- @agents do %>
+                  <option value={module} selected={@selected_agent == module}>
+                    <%= config.label %>
+                  </option>
+                <% end %>
+              </select>
+            </form>
 
             <%= if @agent_config && @agent_config.description do %>
               <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
@@ -185,6 +217,24 @@ defmodule AshAgentStudio.PlaygroundLive do
                   <% end %>
                 <% end %>
 
+                <div class="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
+                  <label class="flex items-center cursor-pointer">
+                    <div class="relative">
+                      <input
+                        type="checkbox"
+                        checked={@streaming_mode}
+                        phx-click="toggle_streaming"
+                        class="sr-only peer"
+                      />
+                      <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-500 dark:peer-focus:ring-indigo-600 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600">
+                      </div>
+                    </div>
+                    <span class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Stream
+                    </span>
+                  </label>
+                </div>
+
                 <button
                   type="submit"
                   disabled={@running?}
@@ -220,10 +270,10 @@ defmodule AshAgentStudio.PlaygroundLive do
                         >
                         </path>
                       </svg>
-                      Running...
+                      <%= if @streaming_mode, do: "Streaming...", else: "Running..." %>
                     </span>
                   <% else %>
-                    Run Agent
+                    <%= if @streaming_mode, do: "Stream Agent", else: "Run Agent" %>
                   <% end %>
                 </button>
               </.form>
@@ -247,6 +297,34 @@ defmodule AshAgentStudio.PlaygroundLive do
                 <% @output -> %>
                   <div class="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
                     <pre class="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap font-mono overflow-auto max-h-96"><%= format_output(@output) %></pre>
+                  </div>
+                <% @running? and @streaming_mode -> %>
+                  <div class="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                    <div class="flex items-center mb-2">
+                      <svg
+                        class="animate-spin h-4 w-4 mr-2 text-indigo-500"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          class="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          stroke-width="4"
+                        >
+                        </circle>
+                        <path
+                          class="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        >
+                        </path>
+                      </svg>
+                      <span class="text-xs text-indigo-500 font-medium">Streaming...</span>
+                    </div>
+                    <pre class="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap font-mono overflow-auto max-h-96"><%= if @streaming_text == "", do: "Waiting for response...", else: @streaming_text %></pre>
                   </div>
                 <% @running? -> %>
                   <div class="flex items-center justify-center py-12 text-gray-500 dark:text-gray-400">
@@ -296,15 +374,22 @@ defmodule AshAgentStudio.PlaygroundLive do
   # Helper functions
 
   defp get_agent_input_args(module) do
-    # Try to use AshAgent.Info if available
-    if Code.ensure_loaded?(AshAgent.Info) do
-      try do
-        apply(AshAgent.Info, :input_args, [module])
-      rescue
-        _ -> []
-      end
-    else
-      []
+    # First try to get inputs from studio config
+    case Registry.get_config(module) do
+      {:ok, %{inputs: inputs}} when is_list(inputs) and inputs != [] ->
+        inputs
+
+      _ ->
+        # Fall back to AshAgent.Info if available
+        if Code.ensure_loaded?(AshAgent.Info) do
+          try do
+            apply(AshAgent.Info, :input_args, [module])
+          rescue
+            _ -> []
+          end
+        else
+          []
+        end
     end
   end
 
@@ -336,15 +421,63 @@ defmodule AshAgentStudio.PlaygroundLive do
   defp coerce_value(value, _), do: value
 
   defp run_agent(module, args) do
-    # Try to call the agent using Ash actions
-    if function_exported?(module, :call, 1) do
-      module.call(args)
+    arity = length(args)
+
+    if function_exported?(module, :call, arity) do
+      values = Keyword.values(args)
+      apply(module, :call, values)
     else
-      {:error, "Agent does not export call/1 function"}
+      {:error, "Agent does not export call/#{arity} function"}
     end
   rescue
     e -> {:error, e}
   end
+
+  defp run_agent_stream(module, args, lv_pid) do
+    arity = length(args)
+
+    if function_exported?(module, :stream, arity) do
+      values = Keyword.values(args)
+
+      case apply(module, :stream, values) do
+        {:ok, stream} ->
+          final_result =
+            Enum.reduce(stream, nil, fn chunk, _acc ->
+              send(lv_pid, {:stream_chunk, chunk})
+              chunk
+            end)
+
+          {:ok, final_result}
+
+        {:error, _} = error ->
+          error
+      end
+    else
+      {:error, "Agent does not export stream/#{arity} function"}
+    end
+  rescue
+    e in FunctionClauseError ->
+      if e.module == ReqLLM.StreamResponse do
+        {:error,
+         "Streaming not supported for this provider/model. Try using the non-streaming mode, or switch to a BAML provider for streaming support."}
+      else
+        {:error, e}
+      end
+
+    e ->
+      {:error, e}
+  end
+
+  defp extract_chunk_text(%{content: content}) when is_binary(content), do: content
+  defp extract_chunk_text(%{"content" => content}) when is_binary(content), do: content
+  defp extract_chunk_text(%{message: message}) when is_binary(message), do: message
+  defp extract_chunk_text(%{"message" => message}) when is_binary(message), do: message
+  defp extract_chunk_text(%{delta: delta}) when is_binary(delta), do: delta
+  defp extract_chunk_text(%{"delta" => delta}) when is_binary(delta), do: delta
+  defp extract_chunk_text(%{text: text}) when is_binary(text), do: text
+  defp extract_chunk_text(%{"text" => text}) when is_binary(text), do: text
+  defp extract_chunk_text(chunk) when is_binary(chunk), do: chunk
+  defp extract_chunk_text(_), do: ""
 
   defp render_input(arg, form) do
     assigns = %{form: form, arg: arg, name: to_string(arg.name)}

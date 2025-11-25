@@ -3,7 +3,7 @@ defmodule AshAgentStudio.Registry do
   Registry for agents registered with Ash Agent Studio.
 
   Agents that use the `AshAgentStudio.Resource` extension are automatically
-  registered here at compile time.
+  discovered and registered here at startup.
   """
 
   use GenServer
@@ -19,6 +19,13 @@ defmodule AshAgentStudio.Registry do
   """
   def register(module, config) do
     GenServer.call(__MODULE__, {:register, module, config})
+  end
+
+  @doc """
+  Scan all loaded modules and register any that have the studio config function.
+  """
+  def discover_agents do
+    GenServer.call(__MODULE__, :discover_agents)
   end
 
   @doc """
@@ -58,6 +65,8 @@ defmodule AshAgentStudio.Registry do
   @impl true
   def init(_opts) do
     table = :ets.new(@table_name, [:named_table, :public, :set])
+    # Discover agents after a short delay to ensure all modules are loaded
+    Process.send_after(self(), :discover_agents, 100)
     {:ok, %{table: table}}
   end
 
@@ -65,5 +74,25 @@ defmodule AshAgentStudio.Registry do
   def handle_call({:register, module, config}, _from, state) do
     :ets.insert(@table_name, {module, config})
     {:reply, :ok, state}
+  end
+
+  @impl true
+  def handle_call(:discover_agents, _from, state) do
+    do_discover_agents()
+    {:reply, :ok, state}
+  end
+
+  @impl true
+  def handle_info(:discover_agents, state) do
+    do_discover_agents()
+    {:noreply, state}
+  end
+
+  defp do_discover_agents do
+    for {module, _} <- :code.all_loaded(),
+        function_exported?(module, :__ash_agent_studio_config__, 0) do
+      config = module.__ash_agent_studio_config__()
+      :ets.insert(@table_name, {module, config})
+    end
   end
 end
