@@ -14,11 +14,30 @@ defmodule AshAgentStudio.Router do
           ash_agent_studio "/studio"
         end
       end
+
+  Note: Asset routes are registered at the module level (outside any scopes/pipelines) to avoid
+  authentication requirements. This follows the same pattern as Phoenix LiveDashboard.
   """
 
   defmacro __using__(_opts) do
     quote do
       import AshAgentStudio.Router
+      @before_compile AshAgentStudio.Router
+      Module.register_attribute(__MODULE__, :ash_agent_studio_prefix, accumulate: false)
+    end
+  end
+
+  defmacro __before_compile__(env) do
+    prefix = Module.get_attribute(env.module, :ash_agent_studio_prefix)
+
+    if prefix do
+      quote do
+        # Register asset route at module level (outside any scopes/pipelines)
+        # This bypasses authentication pipelines, following LiveDashboard's pattern
+        scope unquote(prefix), alias: false do
+          get("/assets/:asset", AshAgentStudio.AssetController, :show)
+        end
+      end
     end
   end
 
@@ -31,10 +50,10 @@ defmodule AshAgentStudio.Router do
       # Compute the full scoped path at compile time (includes parent scopes)
       full_path = Phoenix.Router.scoped_path(__MODULE__, path)
 
-      scope path, scope_opts do
-        # Assets route must be outside live_session (get routes don't work inside live_session)
-        get("/assets/:asset", AshAgentStudio.AssetController, :show)
+      # Store the full path for asset route registration in @before_compile
+      @ash_agent_studio_prefix full_path
 
+      scope path, scope_opts do
         live_session :ash_agent_studio,
           session: %{"ash_agent_studio_base_path" => full_path},
           on_mount: {AshAgentStudio.Hooks, :assign_base_path},
