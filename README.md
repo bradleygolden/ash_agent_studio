@@ -49,6 +49,14 @@ end
 - `ash_agent_studio/2` expects the mount path as the first argument.
 - Pass `:as` to customize the helper prefix (`:ash_agent_studio` by default).
 
+## Related Packages
+
+AshAgentStudio is part of the [AshAgent Stack](https://github.com/bradleygolden/ash_agent_stack) ecosystem:
+
+- [ash_agent](https://github.com/bradleygolden/ash_agent) - Core agent framework with declarative DSL
+- [ash_agent_tools](https://github.com/bradleygolden/ash_agent_tools) - Tool calling support
+- [ash_baml](https://github.com/bradleygolden/ash_baml) - BAML integration for structured outputs
+
 ## Development
 
 Useful tasks:
@@ -58,3 +66,7 @@ Useful tasks:
 - `mix format` – format Elixir and HEEx files
 
 No asset compilation or Phoenix endpoint exists in this project—the host application provides HTTP, authentication, and static assets.
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
