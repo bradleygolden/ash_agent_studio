@@ -1,6 +1,6 @@
 defmodule AshAgentStudio.Dev.Agents.BamlChatAgent do
   @moduledoc """
-  A dev chat agent using AshAgent with BAML provider and Ollama.
+  Chat agent using BAML with local Ollama (qwen3:1.7b).
   Used for testing the playground with BAML provider and streaming.
   """
 
@@ -19,16 +19,8 @@ defmodule AshAgentStudio.Dev.Agents.BamlChatAgent do
     prompt("Prompt defined in BAML - this placeholder satisfies the DSL requirement")
 
     input do
-      argument(:message, :string, allow_nil?: false)
+      argument(:message, :string, allow_nil?: false, doc: "Your message to the agent")
     end
-  end
-
-  agent_studio do
-    label("BAML Chat Agent")
-    description("Chat agent using BAML with local Ollama (qwen3:1.7b)")
-    group(:examples)
-
-    input(:message, type: :string, doc: "Your message to the agent", allow_nil?: false)
   end
 
   code_interface do

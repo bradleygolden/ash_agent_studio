@@ -1,6 +1,11 @@
 defmodule AshAgentStudio.Transformers.RegisterAgent do
   @moduledoc """
   Transformer that registers agents with the AshAgentStudio.Registry at compile time.
+
+  Derives configuration from:
+  - Label: Module name converted to human-readable form (snake_case → Title Case)
+  - Description: @moduledoc of the agent module (first paragraph)
+  - Inputs: argument entities from ash_agent DSL (uses the `doc` field)
   """
 
   use Spark.Dsl.Transformer
@@ -10,39 +15,29 @@ defmodule AshAgentStudio.Transformers.RegisterAgent do
   def transform(dsl_state) do
     module = Spark.Dsl.Transformer.get_persisted(dsl_state, :module)
 
-    # Get input entities from the DSL
-    inputs =
-      Spark.Dsl.Transformer.get_entities(dsl_state, [:agent_studio])
-      |> Enum.map(fn input ->
-        %{
-          name: input.name,
-          type: input.type,
-          doc: input.doc,
-          default: input.default,
-          allow_nil?: input.allow_nil?
-        }
-      end)
+    # Derive inputs from ash_agent's argument entities
+    inputs = derive_inputs_from_ash_agent(dsl_state)
 
-    config = %{
-      label:
-        Spark.Dsl.Transformer.get_option(dsl_state, [:agent_studio], :label) ||
-          default_label(module),
-      description: Spark.Dsl.Transformer.get_option(dsl_state, [:agent_studio], :description),
-      group: Spark.Dsl.Transformer.get_option(dsl_state, [:agent_studio], :group),
-      inputs: inputs
-    }
+    # Pre-compute the label at transformer time
+    label = default_label(module)
 
-    # Register at runtime when the module is loaded
     dsl_state =
       Spark.Dsl.Transformer.eval(
         dsl_state,
         [],
         quote do
           def __ash_agent_studio_config__ do
-            unquote(Macro.escape(config))
+            # Extract description from @moduledoc at compile time
+            description =
+              AshAgentStudio.Transformers.RegisterAgent.extract_moduledoc_description(@moduledoc)
+
+            %{
+              label: unquote(label),
+              description: description,
+              inputs: unquote(Macro.escape(inputs))
+            }
           end
 
-          # Register with the registry when the module is first called
           @after_compile {AshAgentStudio.Transformers.RegisterAgent, :register_agent}
         end
       )
@@ -57,14 +52,53 @@ defmodule AshAgentStudio.Transformers.RegisterAgent do
     end
   end
 
+  @doc """
+  Extracts the first paragraph from a module's @moduledoc attribute.
+  Returns nil if no documentation is present.
+  """
+  @spec extract_moduledoc_description(term()) :: String.t() | nil
+  def extract_moduledoc_description(moduledoc) do
+    case moduledoc do
+      nil -> nil
+      false -> nil
+      {_line, doc} when is_binary(doc) -> first_paragraph(doc)
+      doc when is_binary(doc) -> first_paragraph(doc)
+      _ -> nil
+    end
+  end
+
+  defp first_paragraph(doc) do
+    doc
+    |> String.split(~r/\n\n/, parts: 2)
+    |> List.first()
+    |> String.trim()
+  end
+
+  defp derive_inputs_from_ash_agent(dsl_state) do
+    # Try to get argument entities from ash_agent's input section
+    dsl_state
+    |> Spark.Dsl.Transformer.get_entities([:agent, :input])
+    |> Enum.map(fn arg ->
+      %{
+        name: arg.name,
+        type: arg.type,
+        doc: arg.doc,
+        default: arg.default,
+        allow_nil?: arg.allow_nil?
+      }
+    end)
+  rescue
+    # If ash_agent extension is not present, return empty list
+    _ -> []
+  end
+
+  # Follows ash_admin pattern: snake_case → Title Case
   defp default_label(module) do
     module
     |> Module.split()
     |> List.last()
     |> Macro.underscore()
-    |> String.replace("_", " ")
-    |> String.split()
-    |> Enum.map(&String.capitalize/1)
-    |> Enum.join(" ")
+    |> String.split("_")
+    |> Enum.map_join(" ", &String.capitalize/1)
   end
 end

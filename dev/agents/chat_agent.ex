@@ -1,6 +1,6 @@
 defmodule AshAgentStudio.Dev.Agents.ChatAgent do
   @moduledoc """
-  A dev chat agent using AshAgent with Ollama.
+  Chat agent using local Ollama (qwen3:1.7b).
   Used for testing the playground and observe features.
   """
 
@@ -23,7 +23,6 @@ defmodule AshAgentStudio.Dev.Agents.ChatAgent do
     end
   end
 
-  # AshAgent configuration - uses local Ollama
   agent do
     client("openai:qwen3:1.7b",
       base_url: "http://localhost:11434/v1",
@@ -43,20 +42,10 @@ defmodule AshAgentStudio.Dev.Agents.ChatAgent do
     """)
 
     input do
-      argument(:message, :string, allow_nil?: false)
+      argument(:message, :string, allow_nil?: false, doc: "Your message to the agent")
     end
   end
 
-  # AshAgentStudio configuration for the playground UI
-  agent_studio do
-    label("Chat Agent")
-    description("Chat agent using local Ollama (qwen3:1.7b)")
-    group(:examples)
-
-    input(:message, type: :string, doc: "Your message to the agent", allow_nil?: false)
-  end
-
-  # Code interface for convenient calling
   code_interface do
     define(:call, args: [:message])
     define(:stream, args: [:message])

@@ -379,22 +379,9 @@ defmodule AshAgentStudio.PlaygroundLive do
     end
   end
 
-  defp get_agent_input_args(module, studio_config) do
-    case studio_config do
-      %{inputs: inputs} when is_list(inputs) and inputs != [] ->
-        inputs
-
-      _ ->
-        if Code.ensure_loaded?(AshAgent.Info) do
-          try do
-            apply(AshAgent.Info, :input_args, [module])
-          rescue
-            _ -> []
-          end
-        else
-          []
-        end
-    end
+  defp get_agent_input_args(_module, studio_config) do
+    # Inputs are now always derived from ash_agent in the transformer
+    Map.get(studio_config, :inputs, [])
   end
 
   defp default_values(input_args) do
@@ -590,7 +577,7 @@ defmodule AshAgentStudio.PlaygroundLive do
   defp get_studio_config(module) do
     module.__ash_agent_studio_config__()
   rescue
-    _ -> %{label: default_label(module), description: nil, group: nil, inputs: []}
+    _ -> %{label: default_label(module), description: nil, inputs: []}
   end
 
   defp default_label(module) do
