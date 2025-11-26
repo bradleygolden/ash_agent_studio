@@ -56,7 +56,7 @@ defmodule AshAgentStudio.Layouts do
         </div>
       </header>
 
-      <main class="flex-1 overflow-hidden flex flex-col mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+      <main class="flex-1 overflow-y-auto flex flex-col mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
         {render_slot(@inner_block)}
       </main>
     </div>
