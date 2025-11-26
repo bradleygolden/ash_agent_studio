@@ -425,39 +425,33 @@ defmodule AshAgentStudio.PlaygroundLive do
   defp coerce_value(value, _), do: value
 
   defp run_agent(module, args) do
-    arity = length(args)
+    arguments = Map.new(args)
+    input = Ash.ActionInput.for_action(module, :call, arguments)
 
-    if function_exported?(module, :call, arity) do
-      values = Keyword.values(args)
-      apply(module, :call, values)
-    else
-      {:error, "Agent does not export call/#{arity} function"}
+    case Ash.run_action(input) do
+      {:ok, result} -> {:ok, result}
+      {:error, error} -> {:error, error}
     end
   rescue
     e -> {:error, e}
   end
 
   defp run_agent_stream(module, args, lv_pid) do
-    arity = length(args)
+    arguments = Map.new(args)
+    input = Ash.ActionInput.for_action(module, :stream, arguments)
 
-    if function_exported?(module, :stream, arity) do
-      values = Keyword.values(args)
+    case Ash.run_action(input) do
+      {:ok, stream} ->
+        final_result =
+          Enum.reduce(stream, nil, fn chunk, _acc ->
+            send(lv_pid, {:stream_chunk, chunk})
+            chunk
+          end)
 
-      case apply(module, :stream, values) do
-        {:ok, stream} ->
-          final_result =
-            Enum.reduce(stream, nil, fn chunk, _acc ->
-              send(lv_pid, {:stream_chunk, chunk})
-              chunk
-            end)
+        {:ok, final_result}
 
-          {:ok, final_result}
-
-        {:error, _} = error ->
-          error
-      end
-    else
-      {:error, "Agent does not export stream/#{arity} function"}
+      {:error, error} ->
+        {:error, error}
     end
   rescue
     e in FunctionClauseError ->
