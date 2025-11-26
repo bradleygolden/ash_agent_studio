@@ -170,7 +170,7 @@ defmodule AshAgentStudio.RunLive do
                         </h3>
                       </div>
                       <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-white/5 dark:bg-[#0B1120]/50">
-                        <pre class="overflow-x-auto text-xs font-mono text-slate-700 dark:text-slate-300">{render_payload(@run.input)}</pre>
+                        <pre class="overflow-x-auto text-xs font-mono text-slate-700 dark:text-slate-300">{render_payload(@run.input, @run.agent)}</pre>
                       </div>
                     </section>
 
@@ -181,7 +181,7 @@ defmodule AshAgentStudio.RunLive do
                         </h3>
                       </div>
                       <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-white/5 dark:bg-[#0B1120]/50">
-                        <pre class="overflow-x-auto text-xs font-mono text-slate-700 dark:text-slate-300">{render_payload(@run.result)}</pre>
+                        <pre class="overflow-x-auto text-xs font-mono text-slate-700 dark:text-slate-300">{render_payload(@run.result, @run.agent)}</pre>
                       </div>
                     </section>
                   </div>
@@ -215,7 +215,7 @@ defmodule AshAgentStudio.RunLive do
                           Provider Metadata
                         </h3>
                         <div class="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-white/5 dark:bg-[#0B1120]/50">
-                          <pre class="overflow-x-auto text-xs font-mono text-slate-700 dark:text-slate-300">{render_payload(@run.provider_meta)}</pre>
+                          <pre class="overflow-x-auto text-xs font-mono text-slate-700 dark:text-slate-300">{render_payload(@run.provider_meta, @run.agent)}</pre>
                         </div>
                       </section>
                     <% end %>
@@ -228,7 +228,7 @@ defmodule AshAgentStudio.RunLive do
                   </div>
                 <% :error -> %>
                   <div class="rounded-lg border border-rose-200 bg-rose-50 p-4 dark:border-rose-500/20 dark:bg-rose-500/10">
-                    <pre class="overflow-x-auto text-xs font-mono text-rose-900 dark:text-rose-100">{render_payload(@run.error)}</pre>
+                    <pre class="overflow-x-auto text-xs font-mono text-rose-900 dark:text-rose-100">{render_payload(@run.error, @run.agent)}</pre>
                   </div>
               <% end %>
             </div>
@@ -365,10 +365,43 @@ defmodule AshAgentStudio.RunLive do
 
   defp usage_value(_usage, _key), do: 0
 
-  defp render_payload(nil), do: "--"
+  defp render_payload(nil, _agent), do: "--"
 
-  defp render_payload(data) do
-    inspect(data, pretty: true, limit: :infinity)
+  defp render_payload(data, agent) do
+    data
+    |> redact_sensitive_data(agent)
+    |> inspect(pretty: true, limit: :infinity)
+  end
+
+  defp redact_sensitive_data(data, agent) when is_atom(agent) and not is_nil(agent) do
+    explicit = safe_get_redact_fields(agent)
+    auto = safe_get_sensitive_input_fields(agent)
+    all_redact = Enum.uniq(explicit ++ auto)
+
+    if all_redact == [] do
+      data
+    else
+      AshAgentStudio.Sensitive.redact_deep(data, all_redact)
+    end
+  end
+
+  defp redact_sensitive_data(data, _agent), do: data
+
+  defp safe_get_redact_fields(agent) do
+    AshAgentStudio.Info.redact_fields(agent)
+  rescue
+    _ -> []
+  end
+
+  # credo:disable-for-next-line Credo.Check.Refactor.Apply
+  defp safe_get_sensitive_input_fields(agent) do
+    if Code.ensure_loaded?(AshAgent.Info) do
+      apply(AshAgent.Info, :sensitive_input_fields, [agent])
+    else
+      []
+    end
+  rescue
+    _ -> []
   end
 
   defp http_entries(nil), do: []

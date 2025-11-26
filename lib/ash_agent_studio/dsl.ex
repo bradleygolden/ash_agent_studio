@@ -75,6 +75,11 @@ defmodule AshAgentStudio.Dsl do
         type: :atom,
         required: false,
         doc: "Optional grouping for organizing agents in the UI."
+      ],
+      redact_fields: [
+        type: {:list, :atom},
+        default: [],
+        doc: "List of field names to redact in studio UI (replaced with [REDACTED])."
       ]
     ]
   }
