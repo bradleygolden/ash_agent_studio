@@ -13,7 +13,8 @@ defmodule AshAgentStudio.PlaygroundLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    agents = Registry.list_agents()
+    otp_app = socket.endpoint.config(:otp_app)
+    agents = discover_agents(otp_app)
 
     {:ok,
      assign(socket,
@@ -46,9 +47,9 @@ defmodule AshAgentStudio.PlaygroundLive do
     else
       module = String.to_existing_atom(module_string)
 
-      case Registry.get_config(module) do
+      case find_agent_config(socket.assigns.agents, module) do
         {:ok, studio_config} ->
-          input_args = get_agent_input_args(module)
+          input_args = get_agent_input_args(module, studio_config)
 
           {:noreply,
            assign(socket,
@@ -371,14 +372,19 @@ defmodule AshAgentStudio.PlaygroundLive do
 
   # Helper functions
 
-  defp get_agent_input_args(module) do
-    # First try to get inputs from studio config
-    case Registry.get_config(module) do
-      {:ok, %{inputs: inputs}} when is_list(inputs) and inputs != [] ->
+  defp find_agent_config(agents, module) do
+    case Enum.find(agents, fn {m, _config} -> m == module end) do
+      {^module, config} -> {:ok, config}
+      nil -> :error
+    end
+  end
+
+  defp get_agent_input_args(module, studio_config) do
+    case studio_config do
+      %{inputs: inputs} when is_list(inputs) and inputs != [] ->
         inputs
 
       _ ->
-        # Fall back to AshAgent.Info if available
         if Code.ensure_loaded?(AshAgent.Info) do
           try do
             apply(AshAgent.Info, :input_args, [module])
@@ -558,4 +564,49 @@ defmodule AshAgentStudio.PlaygroundLive do
 
   defp format_output(output) when is_binary(output), do: output
   defp format_output(output), do: inspect(output, pretty: true)
+
+  defp discover_agents(otp_app) do
+    domain_agents = discover_agents_from_domains(otp_app)
+    registry_agents = Registry.list_agents()
+
+    (domain_agents ++ registry_agents)
+    |> Enum.uniq_by(fn {module, _config} -> module end)
+  end
+
+  defp discover_agents_from_domains(otp_app) do
+    otp_app
+    |> Application.get_env(:ash_domains, [])
+    |> Enum.filter(&AshAgentStudio.Domain.show?/1)
+    |> Enum.flat_map(&agents_from_domain/1)
+  end
+
+  defp agents_from_domain(domain) do
+    domain
+    |> Ash.Domain.Info.resource_references()
+    |> Enum.filter(fn ref -> has_studio_extension?(ref.resource) end)
+    |> Enum.map(fn ref -> {ref.resource, get_studio_config(ref.resource)} end)
+  end
+
+  defp has_studio_extension?(resource) do
+    AshAgentStudio.Resource in Spark.extensions(resource)
+  rescue
+    _ -> false
+  end
+
+  defp get_studio_config(module) do
+    module.__ash_agent_studio_config__()
+  rescue
+    _ -> %{label: default_label(module), description: nil, group: nil, inputs: []}
+  end
+
+  defp default_label(module) do
+    module
+    |> Module.split()
+    |> List.last()
+    |> Macro.underscore()
+    |> String.replace("_", " ")
+    |> String.split()
+    |> Enum.map(&String.capitalize/1)
+    |> Enum.join(" ")
+  end
 end
