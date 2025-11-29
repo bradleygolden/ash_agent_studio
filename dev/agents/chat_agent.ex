@@ -14,15 +14,6 @@ defmodule AshAgentStudio.Dev.Agents.ChatAgent do
     require_primary_key?(false)
   end
 
-  defmodule Reply do
-    @moduledoc false
-    use Ash.TypedStruct
-
-    typed_struct do
-      field(:content, :string, allow_nil?: false)
-    end
-  end
-
   agent do
     client("openai:qwen3:1.7b",
       base_url: "http://localhost:11434/v1",
@@ -30,7 +21,9 @@ defmodule AshAgentStudio.Dev.Agents.ChatAgent do
       temperature: 0.7
     )
 
-    output(Reply)
+    input_schema(Zoi.object(%{message: Zoi.string()}, coerce: true))
+
+    output_schema(Zoi.object(%{content: Zoi.string()}, coerce: true))
 
     prompt(~p"""
     You are a helpful assistant in the Ash Agent Studio playground.
@@ -40,14 +33,5 @@ defmodule AshAgentStudio.Dev.Agents.ChatAgent do
 
     {{ ctx.output_format }}
     """)
-
-    input do
-      argument(:message, :string, allow_nil?: false, doc: "Your message to the agent")
-    end
-  end
-
-  code_interface do
-    define(:call, args: [:message])
-    define(:stream, args: [:message])
   end
 end

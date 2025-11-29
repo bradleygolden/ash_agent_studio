@@ -533,6 +533,8 @@ defmodule AshAgentStudio.PlaygroundLive do
     |> Enum.join(" ")
   end
 
+  defp format_output(%{__struct__: AshAgent.Result, output: output}), do: format_output(output)
+
   defp format_output(output) when is_struct(output) do
     output
     |> Map.from_struct()

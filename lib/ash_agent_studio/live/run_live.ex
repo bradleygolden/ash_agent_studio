@@ -393,16 +393,8 @@ defmodule AshAgentStudio.RunLive do
     _ -> []
   end
 
-  # credo:disable-for-next-line Credo.Check.Refactor.Apply
-  defp safe_get_sensitive_input_fields(agent) do
-    if Code.ensure_loaded?(AshAgent.Info) do
-      apply(AshAgent.Info, :sensitive_input_fields, [agent])
-    else
-      []
-    end
-  rescue
-    _ -> []
-  end
+  # Sensitive input fields are now handled via Zoi schema metadata
+  defp safe_get_sensitive_input_fields(_agent), do: []
 
   defp http_entries(nil), do: []
 

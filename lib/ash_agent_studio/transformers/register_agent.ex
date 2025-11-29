@@ -75,22 +75,44 @@ defmodule AshAgentStudio.Transformers.RegisterAgent do
   end
 
   defp derive_inputs_from_ash_agent(dsl_state) do
-    # Try to get argument entities from ash_agent's input section
-    dsl_state
-    |> Spark.Dsl.Transformer.get_entities([:agent, :input])
-    |> Enum.map(fn arg ->
-      %{
-        name: arg.name,
-        type: arg.type,
-        doc: arg.doc,
-        default: arg.default,
-        allow_nil?: arg.allow_nil?
-      }
-    end)
+    input_schema = Spark.Dsl.Transformer.get_option(dsl_state, [:agent], :input_schema)
+
+    case input_schema do
+      nil -> []
+      schema -> extract_fields_from_zoi_schema(schema)
+    end
   rescue
-    # If ash_agent extension is not present, return empty list
     _ -> []
   end
+
+  defp extract_fields_from_zoi_schema(%{of: fields}) when is_map(fields) do
+    Enum.map(fields, fn {name, field_schema} ->
+      %{
+        name: name,
+        type: infer_type(field_schema),
+        doc: nil,
+        default: extract_default(field_schema),
+        allow_nil?: optional?(field_schema)
+      }
+    end)
+  end
+
+  defp extract_fields_from_zoi_schema(_), do: []
+
+  defp infer_type(%{type: :string}), do: :string
+  defp infer_type(%{type: :integer}), do: :integer
+  defp infer_type(%{type: :float}), do: :float
+  defp infer_type(%{type: :boolean}), do: :boolean
+  defp infer_type(%{type: :map}), do: :map
+  defp infer_type(%{type: :list}), do: :list
+  defp infer_type(_), do: :string
+
+  defp extract_default(%{default: default}), do: default
+  defp extract_default(_), do: nil
+
+  defp optional?(%{optional: true}), do: true
+  defp optional?(%{nullable: true}), do: true
+  defp optional?(_), do: false
 
   # Follows ash_admin pattern: snake_case → Title Case
   defp default_label(module) do
