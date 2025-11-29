@@ -15,16 +15,14 @@ defmodule AshAgentStudio.Dev.Agents.BamlChatAgent do
   agent do
     provider(:baml)
     client(:dev, function: :ChatAgent)
-    output(AshAgentStudio.BamlClients.Dev.Types.ChatReply)
+    output_schema(AshAgentStudio.BamlClients.Dev.Types.ChatReply)
     prompt("Prompt defined in BAML - this placeholder satisfies the DSL requirement")
 
-    input do
-      argument(:message, :string, allow_nil?: false, doc: "Your message to the agent")
-    end
+    input_schema(Zoi.object(%{message: Zoi.string()}))
   end
 
   code_interface do
-    define(:call, args: [:message])
-    define(:stream, args: [:message])
+    define(:call, args: [:input])
+    define(:stream, args: [:input])
   end
 end

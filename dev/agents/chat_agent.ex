@@ -30,7 +30,7 @@ defmodule AshAgentStudio.Dev.Agents.ChatAgent do
       temperature: 0.7
     )
 
-    output(Reply)
+    output_schema(Reply)
 
     prompt(~p"""
     You are a helpful assistant in the Ash Agent Studio playground.
@@ -41,13 +41,11 @@ defmodule AshAgentStudio.Dev.Agents.ChatAgent do
     {{ ctx.output_format }}
     """)
 
-    input do
-      argument(:message, :string, allow_nil?: false, doc: "Your message to the agent")
-    end
+    input_schema(Zoi.object(%{message: Zoi.string()}))
   end
 
   code_interface do
-    define(:call, args: [:message])
-    define(:stream, args: [:message])
+    define(:call, args: [:input])
+    define(:stream, args: [:input])
   end
 end
