@@ -30,22 +30,20 @@ defmodule AshAgentStudio.Dev.Agents.ChatAgent do
       temperature: 0.7
     )
 
-    output_schema(Reply)
-
-    prompt(~p"""
+    instruction(~p"""
     You are a helpful assistant in the Ash Agent Studio playground.
     Reply with JSON matching the output format exactly.
-
-    User message: {{ message }}
 
     {{ ctx.output_format }}
     """)
 
     input_schema(Zoi.object(%{message: Zoi.string()}))
+
+    output_schema(Reply)
   end
 
   code_interface do
-    define(:call, args: [:input])
-    define(:stream, args: [:input])
+    define(:call, args: [:context])
+    define(:stream, args: [:context])
   end
 end
