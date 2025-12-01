@@ -10,6 +10,7 @@ defmodule AshAgentStudio.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
+      dialyzer: dialyzer(),
       listeners: [Phoenix.CodeReloader]
     ]
   end
@@ -97,6 +98,13 @@ defmodule AshAgentStudio.MixProject do
         "dialyzer",
         "docs --warnings-as-errors"
       ]
+    ]
+  end
+
+  defp dialyzer do
+    [
+      plt_add_apps: [:mix, :ex_unit],
+      list_unused_filters: true
     ]
   end
 end
