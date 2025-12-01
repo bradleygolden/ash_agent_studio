@@ -61,6 +61,7 @@ defmodule AshAgentStudio.MixProject do
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      {:sobelow, "~> 0.13", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.30", only: [:dev, :test], runtime: false}
     ]
   end
@@ -84,12 +85,16 @@ defmodule AshAgentStudio.MixProject do
       ],
       precommit: [
         "deps.get",
+        "deps.compile",
+        "deps.unlock --check-unused",
         "compile --warnings-as-errors",
+        "test --warnings-as-errors",
         "format --check-formatted",
         "credo --strict",
+        "sobelow --exit",
+        "hex.audit",
         "dialyzer --format github",
-        "docs --warnings-as-errors",
-        "test --warnings-as-errors"
+        "docs --warnings-as-errors"
       ]
     ]
   end

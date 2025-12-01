@@ -1,0 +1,7 @@
+
+Traversal.SendFile: Directory Traversal in `send_file`,lib/ash_agent_studio/plug/assets.ex:46,12EF2F6
+XSS.SendResp: XSS in `send_resp`,lib/ash_agent_studio/controllers/asset_controller.ex:25,23305E
+XSS.ContentType: XSS in `put_resp_content_type`,lib/ash_agent_studio/controllers/asset_controller.ex:20,423EBB4
+Traversal.SendFile: Directory Traversal in `send_file`,lib/ash_agent_studio/controllers/asset_controller.ex:21,4A8B4F6
+DOS.BinToAtom: Unsafe atom interpolation,lib/ash_agent_studio/observe/telemetry.ex:434,619776B
+XSS.ContentType: XSS in `put_resp_content_type`,lib/ash_agent_studio/plug/assets.ex:45,63D77C8
