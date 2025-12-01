@@ -393,9 +393,9 @@ defmodule AshAgentStudio.RunLive do
     _ -> []
   end
 
-  # credo:disable-for-next-line Credo.Check.Refactor.Apply
   defp safe_get_sensitive_input_fields(agent) do
     if Code.ensure_loaded?(AshAgent.Info) do
+      # credo:disable-for-next-line Credo.Check.Refactor.Apply
       apply(AshAgent.Info, :sensitive_input_fields, [agent])
     else
       []

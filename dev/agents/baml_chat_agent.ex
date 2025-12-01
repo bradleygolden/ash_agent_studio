@@ -3,6 +3,7 @@ defmodule AshAgentStudio.Dev.Agents.BamlChatAgent do
   Chat agent using BAML with local Ollama (qwen3:1.7b).
   Used for testing the playground with BAML provider and streaming.
   """
+  @dialyzer :no_match
 
   use Ash.Resource,
     domain: AshAgentStudio.Dev.Domain,
