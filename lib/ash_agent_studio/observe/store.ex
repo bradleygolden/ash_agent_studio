@@ -88,7 +88,7 @@ defmodule AshAgentStudio.Observe.Store do
       nil ->
         {:reply, {:error, :not_found}, state}
 
-      run ->
+      %Run{} = run ->
         normalized = normalize_event(event)
         updated = %Run{run | events: run.events ++ [normalized]}
         state = upsert_run(state, updated, false)

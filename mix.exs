@@ -92,8 +92,8 @@ defmodule AshAgentStudio.MixProject do
         "format --check-formatted",
         "credo --strict",
         "sobelow --exit",
-        "hex.audit",
-        "dialyzer --format github",
+        "deps.audit",
+        "dialyzer",
         "docs --warnings-as-errors"
       ]
     ]
