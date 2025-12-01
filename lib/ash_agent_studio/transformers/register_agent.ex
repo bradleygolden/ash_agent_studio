@@ -10,10 +10,12 @@ defmodule AshAgentStudio.Transformers.RegisterAgent do
 
   use Spark.Dsl.Transformer
 
+  alias Spark.Dsl.Transformer
+
   def after?(_), do: true
 
   def transform(dsl_state) do
-    module = Spark.Dsl.Transformer.get_persisted(dsl_state, :module)
+    module = Transformer.get_persisted(dsl_state, :module)
 
     # Derive inputs from ash_agent's argument entities
     inputs = derive_inputs_from_ash_agent(dsl_state)
@@ -22,14 +24,14 @@ defmodule AshAgentStudio.Transformers.RegisterAgent do
     label = default_label(module)
 
     dsl_state =
-      Spark.Dsl.Transformer.eval(
+      Transformer.eval(
         dsl_state,
         [],
         quote do
           def __ash_agent_studio_config__ do
             # Extract description from @moduledoc at compile time
             description =
-              AshAgentStudio.Transformers.RegisterAgent.extract_moduledoc_description(@moduledoc)
+              unquote(__MODULE__).extract_moduledoc_description(@moduledoc)
 
             %{
               label: unquote(label),
@@ -38,7 +40,7 @@ defmodule AshAgentStudio.Transformers.RegisterAgent do
             }
           end
 
-          @after_compile {AshAgentStudio.Transformers.RegisterAgent, :register_agent}
+          @after_compile {unquote(__MODULE__), :register_agent}
         end
       )
 
@@ -77,7 +79,7 @@ defmodule AshAgentStudio.Transformers.RegisterAgent do
   defp derive_inputs_from_ash_agent(dsl_state) do
     # Try to get argument entities from ash_agent's input section
     dsl_state
-    |> Spark.Dsl.Transformer.get_entities([:agent, :input])
+    |> Transformer.get_entities([:agent, :input])
     |> Enum.map(fn arg ->
       %{
         name: arg.name,

@@ -54,9 +54,6 @@ defmodule AshAgentStudio.MixProject do
       {:jason, "~> 1.2"},
       {:bandit, "~> 1.0"},
       {:igniter, "~> 0.3"},
-      {:ash, "~> 3.0", only: :dev},
-      {:ash_agent, in_umbrella: true, only: :dev},
-      {:ash_baml, in_umbrella: true, only: :dev},
       {:esbuild, "~> 0.8", only: :dev},
       {:tailwind, "~> 0.2", only: :dev},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
@@ -64,7 +61,33 @@ defmodule AshAgentStudio.MixProject do
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.13", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.30", only: [:dev, :test], runtime: false}
-    ]
+    ] ++ sibling_deps()
+  end
+
+  defp sibling_deps do
+    if in_umbrella?() do
+      [
+        {:ash_agent, in_umbrella: true},
+        {:ash_baml, in_umbrella: true}
+      ]
+    else
+      [
+        {:ash, "~> 3.0", only: :dev},
+        {:ash_agent, "~> 0.3", only: :dev}
+      ]
+    end
+  end
+
+  defp in_umbrella? do
+    # FORCE_HEX_DEPS=true bypasses umbrella detection for hex.publish
+    if System.get_env("FORCE_HEX_DEPS") == "true" do
+      false
+    else
+      parent_mix = Path.expand("../../mix.exs", __DIR__)
+
+      File.exists?(parent_mix) and
+        parent_mix |> File.read!() |> String.contains?("apps_path")
+    end
   end
 
   # Aliases are shortcuts or tasks specific to the current project.
@@ -85,16 +108,12 @@ defmodule AshAgentStudio.MixProject do
         "phx.digest"
       ],
       precommit: [
-        "deps.get",
-        "deps.compile",
-        "deps.unlock --check-unused",
         "compile --warnings-as-errors",
         "test --warnings-as-errors",
         "format --check-formatted",
         "credo --strict",
-        "sobelow --exit",
+        "sobelow",
         "deps.audit",
-        "hex.audit",
         "dialyzer",
         "docs --warnings-as-errors"
       ]

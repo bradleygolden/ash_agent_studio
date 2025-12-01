@@ -8,6 +8,7 @@ defmodule AshAgentStudio.PlaygroundLive do
 
   use Phoenix.LiveView
 
+  alias Ash.Domain.Info, as: DomainInfo
   alias AshAgentStudio.Layouts
   alias AshAgentStudio.Registry
 
@@ -82,23 +83,8 @@ defmodule AshAgentStudio.PlaygroundLive do
           streaming_text: ""
         )
 
-      if socket.assigns.streaming_mode do
-        lv_pid = self()
-
-        task =
-          Task.async(fn ->
-            run_agent_stream(module, args, lv_pid)
-          end)
-
-        {:noreply, assign(socket, task: task)}
-      else
-        task =
-          Task.async(fn ->
-            run_agent(module, args)
-          end)
-
-        {:noreply, assign(socket, task: task)}
-      end
+      task = start_agent_task(module, args, socket.assigns.streaming_mode)
+      {:noreply, assign(socket, task: task)}
     else
       {:noreply, socket}
     end
@@ -110,6 +96,15 @@ defmodule AshAgentStudio.PlaygroundLive do
 
   def handle_event("validate", %{"input" => params}, socket) do
     {:noreply, assign(socket, form: to_form(params, as: :input))}
+  end
+
+  defp start_agent_task(module, args, true = _streaming) do
+    lv_pid = self()
+    Task.async(fn -> run_agent_stream(module, args, lv_pid) end)
+  end
+
+  defp start_agent_task(module, args, false = _streaming) do
+    Task.async(fn -> run_agent(module, args) end)
   end
 
   @impl true
@@ -529,8 +524,7 @@ defmodule AshAgentStudio.PlaygroundLive do
     |> to_string()
     |> String.replace("_", " ")
     |> String.split()
-    |> Enum.map(&String.capitalize/1)
-    |> Enum.join(" ")
+    |> Enum.map_join(" ", &String.capitalize/1)
   end
 
   defp format_output(output) when is_struct(output) do
@@ -563,7 +557,7 @@ defmodule AshAgentStudio.PlaygroundLive do
 
   defp agents_from_domain(domain) do
     domain
-    |> Ash.Domain.Info.resource_references()
+    |> DomainInfo.resource_references()
     |> Enum.filter(fn ref -> has_studio_extension?(ref.resource) end)
     |> Enum.map(fn ref -> {ref.resource, get_studio_config(ref.resource)} end)
   end
@@ -587,7 +581,6 @@ defmodule AshAgentStudio.PlaygroundLive do
     |> Macro.underscore()
     |> String.replace("_", " ")
     |> String.split()
-    |> Enum.map(&String.capitalize/1)
-    |> Enum.join(" ")
+    |> Enum.map_join(" ", &String.capitalize/1)
   end
 end

@@ -36,10 +36,12 @@ defmodule AshAgentStudio.Domain do
     ]
   }
 
-  use Spark.Dsl.Extension,
+  alias Spark.Dsl.Extension
+
+  use Extension,
     sections: [@agent_studio]
 
   def show?(domain) do
-    Spark.Dsl.Extension.get_opt(domain, [:agent_studio], :show?, false, true)
+    Extension.get_opt(domain, [:agent_studio], :show?, false, true)
   end
 end
