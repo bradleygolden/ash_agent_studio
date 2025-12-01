@@ -3,6 +3,7 @@ defmodule AshAgentStudio.Dev.Agents.ChatAgent do
   Chat agent using local Ollama (qwen3:1.7b).
   Used for testing the playground and observe features.
   """
+  @dialyzer :no_match
 
   use Ash.Resource,
     domain: AshAgentStudio.Dev.Domain,

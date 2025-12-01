@@ -2,7 +2,8 @@ import Config
 
 config :ash_baml,
   clients: [
-    dev: {AshAgentStudio.BamlClients.Dev, baml_src: "dev/baml_src"}
+    dev: {AshAgentStudio.BamlClients.Dev, baml_src: "dev/baml_src"},
+    test: {AshBaml.Test.BamlClient, baml_src: "test/support/fixtures/baml_src"}
   ]
 
 config :ash_agent_studio,
