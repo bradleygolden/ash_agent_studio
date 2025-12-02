@@ -1,2 +1,1 @@
-ExUnit.start()
-{:ok, _} = Application.ensure_all_started(:ash_agent_studio)
+ExUnit.start(capture_log: true, exclude: [:integration])
